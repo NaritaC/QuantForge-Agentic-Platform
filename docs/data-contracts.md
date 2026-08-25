@@ -30,3 +30,22 @@ When only an announcement date is known, `known_from` is the next exchange tradi
 ## Reference data
 
 The trade calendar contains one row for every calendar date with an explicit `is_trading_day` flag. The security master preserves market-qualified identity, display name, listing date, delisting date, vendor type/status codes, source, and actual ingestion timestamp. Current vendor status is never backfilled as historical truth; dynamic-universe activity is reconstructed from effective listing and delisting dates.
+
+## Research artifact contract
+
+A successful experiment stores seven checksummed Parquet artifacts under its run directory:
+
+| Artifact | Grain | Required evidence |
+|---|---|---|
+| `universe` | rebalance date × instrument | lifecycle, ST state, liquidity observations/rank |
+| `factors` | signal date × eligible instrument | raw factors, transformed factors, rank |
+| `signals` | signal date × selected instrument | target weight and signal availability date |
+| `orders` | order attempt | signal/scheduled/attempt dates, side, quantity, status, reason |
+| `fills` | successful fill | next-open price, fill price, costs, slippage, quantity |
+| `holdings` | date × held instrument | quantity, close, and market value |
+| `nav` | trading date | cash, market value, equity, NAV, daily return |
+
+`experiment.json` binds those artifacts to the input snapshot, code version, research parameters,
+leakage controls, limitations, and metrics. A signal formed at period-end close cannot be attempted
+before the next trading-day open. Suspended, limit-blocked, missing-quote, and missing-limit states
+are explicit order outcomes; they are never converted into silent fills.

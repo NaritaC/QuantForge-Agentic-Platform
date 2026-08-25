@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import hashlib
 import json
 import platform
 import subprocess
@@ -10,9 +11,14 @@ from pathlib import Path
 from typing import Any
 
 from quantforge.config import PipelineConfig, load_config
-from quantforge.data.adapters import BaoStockAdapter, FixtureDailyBarAdapter
+from quantforge.data.adapters import (
+    BaoStockAdapter,
+    FixtureDailyBarAdapter,
+    SyntheticResearchAdapter,
+)
 from quantforge.data.adapters.base import AdapterBatch, DailyBarAdapter
 from quantforge.data.catalog import query_daily_bar_summary
+from quantforge.data.lineage import build_daily_bar_lineage
 from quantforge.data.normalize import normalize_daily_bars
 from quantforge.data.quality import validate_daily_bars
 from quantforge.data.reference import (
@@ -60,6 +66,8 @@ def _build_adapter(config: PipelineConfig) -> DailyBarAdapter:
             adjustflag=str(config.adapter_options.get("adjustflag", "3")),
             timeout_seconds=float(config.adapter_options.get("timeout_seconds", 30.0)),
         )
+    if config.adapter == "synthetic_fixture":
+        return SyntheticResearchAdapter(**config.adapter_options)
     raise ValueError(f"Unsupported adapter: {config.adapter!r}")
 
 
@@ -127,7 +135,28 @@ def _build_reference_dataset(
     }
 
 
-def run_pipeline(config: PipelineConfig) -> dict[str, Any]:
+def _reproduction_metadata(config: PipelineConfig, config_path: Path | None) -> dict[str, Any]:
+    if config_path is None:
+        return {
+            "config_path": None,
+            "config_checksum": None,
+            "command": None,
+        }
+    resolved = config_path.resolve()
+    try:
+        display_path = resolved.relative_to(config.project_root).as_posix()
+    except ValueError:
+        display_path = str(resolved)
+    return {
+        "config_path": display_path,
+        "config_checksum": hashlib.sha256(resolved.read_bytes()).hexdigest(),
+        "command": f"python -m quantforge pipeline --config {display_path}",
+    }
+
+
+def run_pipeline(
+    config: PipelineConfig, *, config_path: str | Path | None = None
+) -> dict[str, Any]:
     started_at = datetime.now(UTC)
     run_id = f"{started_at:%Y%m%dT%H%M%SZ}-{uuid.uuid4().hex[:8]}"
     run_dir = config.storage.artifacts_dir / run_id
@@ -141,7 +170,7 @@ def run_pipeline(config: PipelineConfig) -> dict[str, Any]:
     raw = _persist_raw(config, batch)
 
     reference_data: dict[str, Any] = {}
-    if isinstance(adapter, BaoStockAdapter):
+    if isinstance(adapter, (BaoStockAdapter, SyntheticResearchAdapter)):
         for reference_batch in (
             adapter.fetch_trade_calendar(),
             adapter.fetch_security_master(),
@@ -156,7 +185,8 @@ def run_pipeline(config: PipelineConfig) -> dict[str, Any]:
         ingested_at=raw.ingested_at,
     )
     quality = validate_daily_bars(staging)
-    _write_json(run_dir / "quality.json", quality.to_dict())
+    quality_payload = quality.to_dict()
+    _write_json(run_dir / "quality.json", quality_payload)
     if config.fail_on_error:
         quality.raise_if_failed()
 
@@ -171,6 +201,18 @@ def run_pipeline(config: PipelineConfig) -> dict[str, Any]:
         curated, dataset=config.dataset
     )
     sql_summary = query_daily_bar_summary(curated_snapshot.path)
+    lineage = build_daily_bar_lineage(
+        source=batch.source,
+        adapter_version=batch.adapter_version,
+        request=batch.request,
+        raw_rows=len(batch.frame),
+        raw_checksum=raw.checksum,
+        staging_rows=staging_snapshot.row_count,
+        staging_checksum=staging_snapshot.checksum,
+        curated_rows=curated_snapshot.row_count,
+        curated_checksum=curated_snapshot.checksum,
+        quality=quality_payload,
+    )
 
     completed_at = datetime.now(UTC)
     manifest = {
@@ -197,9 +239,13 @@ def run_pipeline(config: PipelineConfig) -> dict[str, Any]:
         },
         "staging": snapshot_to_dict(staging_snapshot),
         "curated": snapshot_to_dict(curated_snapshot),
-        "quality": quality.to_dict(),
+        "quality": quality_payload,
         "duckdb_summary": sql_summary,
         "reference_data": reference_data,
+        "lineage": lineage,
+        "reproduction": _reproduction_metadata(
+            config, Path(config_path) if config_path is not None else None
+        ),
     }
     _write_json(run_dir / "run.json", manifest)
     _write_json(config.storage.artifacts_dir / "latest.json", manifest)
@@ -207,4 +253,5 @@ def run_pipeline(config: PipelineConfig) -> dict[str, Any]:
 
 
 def run_pipeline_from_path(path: str | Path) -> dict[str, Any]:
-    return run_pipeline(load_config(path))
+    config_path = Path(path).resolve()
+    return run_pipeline(load_config(config_path), config_path=config_path)

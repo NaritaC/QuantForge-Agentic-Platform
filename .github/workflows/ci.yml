@@ -27,3 +27,5 @@ jobs:
         run: python -m pytest --cov=quantforge --cov-report=term-missing
       - name: Offline vertical slice
         run: python -m quantforge pipeline --config configs/mvp.yaml
+      - name: Offline research loop
+        run: python -m quantforge experiment --config configs/research-demo.yaml

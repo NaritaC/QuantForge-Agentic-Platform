@@ -15,6 +15,13 @@ def test_dashboard_parser_defaults() -> None:
     assert args.no_browser is False
 
 
+def test_experiment_parser_defaults() -> None:
+    args = build_parser().parse_args(["experiment"])
+
+    assert args.command == "experiment"
+    assert args.config == "configs/research-demo.yaml"
+
+
 def test_dashboard_command_launches_requested_project(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:

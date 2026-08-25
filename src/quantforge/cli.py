@@ -24,6 +24,10 @@ def build_parser() -> argparse.ArgumentParser:
     dashboard.add_argument(
         "--no-browser", action="store_true", help="Start without opening a browser window"
     )
+    experiment = subparsers.add_parser("experiment", help="Run the data-to-strategy research loop")
+    experiment.add_argument(
+        "--config", default="configs/research-demo.yaml", help="YAML configuration path"
+    )
     return parser
 
 
@@ -43,3 +47,19 @@ def main(argv: Sequence[str] | None = None) -> None:
         from quantforge.ui.launcher import launch_dashboard
 
         launch_dashboard(Path(args.project_root), port=args.port, open_browser=not args.no_browser)
+    elif args.command == "experiment":
+        from quantforge.experiment import run_experiment_from_path
+
+        result = run_experiment_from_path(args.config)
+        research = result["research"]
+        summary = {
+            "run_id": result["run_id"],
+            "status": research["status"],
+            "strategy_id": research["strategy_id"],
+            "artifact_rows": {
+                name: artifact["row_count"] for name, artifact in research["artifacts"].items()
+            },
+            "metrics": research["metrics"],
+            "baseline_comparison": research["baseline_comparison"]["status"],
+        }
+        print(json.dumps(summary, ensure_ascii=False, indent=2, default=str))

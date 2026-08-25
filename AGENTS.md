@@ -10,6 +10,8 @@ This repository is an audit-first quantitative research platform. Agents are col
 - Staging normalizes vendor semantics. Curated data must pass explicit contracts and quality gates.
 - Point-in-time availability, revisions, lineage, and execution constraints are first-class data.
 - Research results are evidence, not return promises.
+- A closed research run must materialize universe, factors, signals, orders, fills, holdings, NAV,
+  metrics, parameters, limitations, and checksums; a chart alone is not a completed experiment.
 - The MVP includes a read-only bilingual visual interface for data, quality, lineage, factors, and
   backtests; the interface must disclose unavailable modules rather than fabricate placeholders.
 
@@ -50,5 +52,7 @@ Agents must not:
 - Suspended or limit-blocked orders retry for at most five trading days.
 - Dynamic universe: listed for at least 120 trading days, non-ST, non-delisted, top 300 by trailing 60-day amount.
 - Factors: 12-1 momentum, 60-day low volatility, PIT ROA TTM.
+- The deterministic synthetic functional demo may use the two price factors only and must identify
+  itself as non-research evidence; it does not replace the frozen three-factor production protocol.
 - Cross-sectional median ± 5 MAD winsorization followed by z-score; no non-PIT industry backfill.
 - 2017 warm-up; 2018-2021 research; 2022/2023/2024 walk-forward folds; 2025-latest frozen final OOS.

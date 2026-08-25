@@ -25,6 +25,9 @@ def test_valid_fixture_passes_quality_gate() -> None:
     assert report.passed
     assert report.row_count == 15
     assert report.issues == ()
+    checks = report.to_dict()["checks"]
+    assert len(checks) == 11
+    assert {check["status"] for check in checks} == {"passed"}
 
 
 def test_duplicate_primary_key_fails_instead_of_silent_deduplication() -> None:
@@ -35,6 +38,11 @@ def test_duplicate_primary_key_fails_instead_of_silent_deduplication() -> None:
 
     assert not report.passed
     assert "duplicate_primary_key" in {issue.check for issue in report.issues}
+    check = next(
+        item for item in report.to_dict()["checks"] if item["check"] == "duplicate_primary_key"
+    )
+    assert check["status"] == "failed"
+    assert check["violations"] == 2
     try:
         report.raise_if_failed()
     except DataQualityError as error:

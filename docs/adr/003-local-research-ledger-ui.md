@@ -18,14 +18,20 @@ the same immutable run manifests and curated Parquet snapshots used by the deter
 It does not maintain a second database, rewrite source data, run hidden corrections, or become a
 quality-gate bypass.
 
-The first slice displays:
+The evidence console displays:
 
 - available pipeline runs and their status;
 - row counts, instrument counts, and date coverage;
 - indexed close-price series and a bounded data preview;
-- errors and warnings from main and reference-data quality reports;
-- Raw → Staging → Curated identifiers and checksums;
-- honest availability states for the universe, factor, and backtest modules.
+- every passed, warning, failed, or skipped quality check;
+- supplier requests, row reconciliation, ordered processing steps, field-level mappings, and code
+  references;
+- Raw and Curated samples and schemas;
+- Raw → Staging → Curated identifiers, checksums, configuration hash, Git commit, and reproduction
+  command;
+- universe, factor, signal, order, fill, holding, NAV, metric, limitation, and leakage-control
+  artifacts when a research experiment is present;
+- honest availability states when a selected historical run predates any of those artifacts.
 
 The UI uses an editorial research-ledger aesthetic rather than a generic administration template.
 Chinese and English copy share the same evidence and behavior.

@@ -15,6 +15,51 @@ Severity = Literal["error", "warning"]
 
 
 @dataclass(frozen=True)
+class QualityRule:
+    check: str
+    severity: Severity
+    description: str
+
+
+QUALITY_RULES: dict[str, tuple[QualityRule, ...]] = {
+    "daily_bars": (
+        QualityRule("required_columns", "error", "All canonical columns are present."),
+        QualityRule("null_primary_key", "error", "Instrument and trade date are not null."),
+        QualityRule("duplicate_primary_key", "error", "Instrument and trade date are unique."),
+        QualityRule("missing_price", "error", "OHLC and previous close are populated."),
+        QualityRule("nonpositive_price", "error", "All prices are strictly positive."),
+        QualityRule("invalid_ohlc", "error", "High and low bound open and close."),
+        QualityRule("negative_volume_or_amount", "error", "Volume and turnover are non-negative."),
+        QualityRule("invalid_trade_status", "error", "Trade status uses the canonical enum."),
+        QualityRule(
+            "suspended_with_activity",
+            "warning",
+            "Suspended rows normally have zero volume and turnover.",
+        ),
+        QualityRule("invalid_price_limits", "error", "Upper price limit is not below lower limit."),
+        QualityRule(
+            "missing_price_limits",
+            "warning",
+            "Daily upper and lower price limits are available for execution checks.",
+        ),
+    ),
+    "trade_calendar": (
+        QualityRule("required_columns", "error", "All canonical columns are present."),
+        QualityRule("duplicate_trade_date", "error", "Each calendar date is unique."),
+        QualityRule("invalid_calendar_value", "error", "Dates and trading-day flags are valid."),
+    ),
+    "security_master": (
+        QualityRule("required_columns", "error", "All canonical columns are present."),
+        QualityRule("duplicate_instrument", "error", "Each instrument is unique."),
+        QualityRule(
+            "missing_list_date", "error", "Listing dates are available for PIT eligibility."
+        ),
+        QualityRule("invalid_listing_lifecycle", "error", "Delisting does not precede listing."),
+    ),
+}
+
+
+@dataclass(frozen=True)
 class QualityIssue:
     check: str
     severity: Severity
@@ -34,10 +79,37 @@ class QualityReport:
         return not any(issue.severity == "error" for issue in self.issues)
 
     def to_dict(self) -> dict[str, Any]:
+        issue_by_check = {issue.check: issue for issue in self.issues}
+        blocked = "required_columns" in issue_by_check
+        checks: list[dict[str, Any]] = []
+        for rule in QUALITY_RULES.get(self.dataset, ()):
+            issue = issue_by_check.get(rule.check)
+            if issue is not None:
+                status = "failed" if issue.severity == "error" else "warning"
+                violations = issue.count
+                message = issue.message
+            elif blocked and rule.check != "required_columns":
+                status = "not_run"
+                violations = None
+                message = "Not executed because required columns are missing."
+            else:
+                status = "passed"
+                violations = 0
+                message = rule.description
+            checks.append(
+                {
+                    "check": rule.check,
+                    "severity": rule.severity,
+                    "status": status,
+                    "violations": violations,
+                    "message": message,
+                }
+            )
         return {
             "dataset": self.dataset,
             "row_count": self.row_count,
             "passed": self.passed,
+            "checks": checks,
             "issues": [asdict(issue) for issue in self.issues],
         }
 

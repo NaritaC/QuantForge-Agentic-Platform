@@ -92,6 +92,24 @@ def load_daily_bar_preview(manifest: dict[str, Any], *, limit: int = 200) -> pd.
         connection.close()
 
 
+def load_raw_preview(manifest: dict[str, Any], *, limit: int = 200) -> pd.DataFrame:
+    """Load a bounded preview of the exact local Raw artifact when its format is supported."""
+
+    if limit < 1:
+        raise ValueError("limit must be positive")
+    value = manifest.get("raw", {}).get("data_path")
+    if not value:
+        raise ValueError("Run manifest does not contain a Raw artifact path")
+    path = Path(str(value))
+    if not path.exists():
+        raise FileNotFoundError(f"Raw artifact is not available locally: {path}")
+    if path.suffix.lower() == ".csv":
+        return pd.read_csv(path, nrows=limit)
+    if path.suffix.lower() == ".parquet":
+        return pd.read_parquet(path).head(limit)
+    raise ValueError(f"Raw preview is not supported for {path.suffix or 'binary'} artifacts")
+
+
 def load_indexed_close_series(
     manifest: dict[str, Any],
     *,
@@ -158,3 +176,134 @@ def quality_issues_frame(manifest: dict[str, Any]) -> pd.DataFrame:
                 }
             )
     return pd.DataFrame(rows, columns=["dataset", "severity", "check", "count", "message"])
+
+
+def quality_checks_frame(manifest: dict[str, Any]) -> pd.DataFrame:
+    """Flatten all executed checks, including checks that passed."""
+
+    rows: list[dict[str, Any]] = []
+    reports: list[tuple[str, dict[str, Any]]] = [("daily_bars", manifest.get("quality", {}))]
+    for dataset, payload in manifest.get("reference_data", {}).items():
+        reports.append((str(dataset), payload.get("quality", {})))
+    for dataset, report in reports:
+        checks = report.get("checks", [])
+        if not checks:
+            checks = [
+                {
+                    "check": issue.get("check", "unknown"),
+                    "severity": issue.get("severity", "unknown"),
+                    "status": ("failed" if issue.get("severity") == "error" else "warning"),
+                    "violations": issue.get("count"),
+                    "message": issue.get("message", ""),
+                }
+                for issue in report.get("issues", [])
+            ]
+        for check in checks:
+            rows.append({"dataset": dataset, **check})
+    return pd.DataFrame(
+        rows,
+        columns=["dataset", "check", "severity", "status", "violations", "message"],
+    )
+
+
+def processing_steps_frame(manifest: dict[str, Any], *, language: str) -> pd.DataFrame:
+    """Return ordered processing evidence for the selected language."""
+
+    name_key = "name_zh" if language == "中文" else "name_en"
+    rule_key = "rule_zh" if language == "中文" else "rule_en"
+    rows = []
+    for step in manifest.get("lineage", {}).get("processing_steps", []):
+        rows.append(
+            {
+                "order": step.get("order"),
+                "step": step.get("step"),
+                "name": step.get(name_key, step.get("step")),
+                "rule": step.get(rule_key, ""),
+                "input_rows": step.get("input_rows"),
+                "output_rows": step.get("output_rows"),
+                "status": step.get("status"),
+                "implementation": step.get("implementation"),
+                "output_checksum": step.get("output_checksum"),
+            }
+        )
+    return pd.DataFrame(rows)
+
+
+def field_lineage_frame(manifest: dict[str, Any], *, language: str) -> pd.DataFrame:
+    """Return source-to-canonical field mappings for the selected language."""
+
+    rule_key = "rule_zh" if language == "中文" else "rule_en"
+    rows = [
+        {
+            "source_field": field.get("source_field"),
+            "canonical_field": field.get("canonical_field"),
+            "rule": field.get(rule_key, ""),
+            "implementation": field.get("implementation"),
+        }
+        for field in manifest.get("lineage", {}).get("field_lineage", [])
+    ]
+    return pd.DataFrame(rows)
+
+
+def row_reconciliation_frame(manifest: dict[str, Any]) -> pd.DataFrame:
+    return pd.DataFrame(manifest.get("lineage", {}).get("row_reconciliation", []))
+
+
+def flatten_mapping(payload: dict[str, Any], *, prefix: str = "") -> pd.DataFrame:
+    """Flatten configuration and request mappings into readable key/value rows."""
+
+    rows: list[dict[str, str]] = []
+    for key, value in payload.items():
+        path = f"{prefix}.{key}" if prefix else str(key)
+        if isinstance(value, dict):
+            rows.extend(flatten_mapping(value, prefix=path).to_dict(orient="records"))
+        else:
+            display = ", ".join(map(str, value)) if isinstance(value, (list, tuple)) else str(value)
+            rows.append({"parameter": path, "value": display})
+    return pd.DataFrame(rows, columns=["parameter", "value"])
+
+
+def trace_inventory(manifest: dict[str, Any]) -> pd.DataFrame:
+    """Explain which evidence needed for exact reproduction is present."""
+
+    lineage = manifest.get("lineage", {})
+    reproduction = manifest.get("reproduction", {})
+    items = [
+        ("source_request", bool(lineage.get("source_request"))),
+        ("raw_checksum", bool(manifest.get("raw", {}).get("checksum"))),
+        ("processing_steps", bool(lineage.get("processing_steps"))),
+        ("field_lineage", bool(lineage.get("field_lineage"))),
+        ("quality_checks", bool(manifest.get("quality", {}).get("checks"))),
+        ("curated_checksum", bool(manifest.get("curated", {}).get("checksum"))),
+        ("git_commit", bool(manifest.get("git_commit"))),
+        ("config_checksum", bool(reproduction.get("config_checksum"))),
+        ("reproduction_command", bool(reproduction.get("command"))),
+    ]
+    return pd.DataFrame(
+        [
+            {"evidence": name, "status": "present" if present else "missing"}
+            for name, present in items
+        ]
+    )
+
+
+def research_artifacts_frame(manifest: dict[str, Any]) -> pd.DataFrame:
+    rows = [
+        {"artifact": name, **payload}
+        for name, payload in manifest.get("research", {}).get("artifacts", {}).items()
+    ]
+    return pd.DataFrame(rows)
+
+
+def load_research_artifact(
+    manifest: dict[str, Any], name: str, *, limit: int = 500
+) -> pd.DataFrame:
+    if limit < 1:
+        raise ValueError("limit must be positive")
+    payload = manifest.get("research", {}).get("artifacts", {}).get(name)
+    if not payload or not payload.get("path"):
+        raise ValueError(f"Research artifact is not recorded: {name}")
+    path = Path(str(payload["path"]))
+    if not path.exists():
+        raise FileNotFoundError(f"Research artifact is unavailable: {path}")
+    return pd.read_parquet(path).head(limit)
