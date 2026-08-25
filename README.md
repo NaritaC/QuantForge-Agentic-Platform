@@ -51,7 +51,7 @@ See [the data contract](docs/data-contracts.md), [quant-data pitfalls](docs/quan
 
 Credentials are entered only in the local, Git-ignored `.env`; see [the secrets guide](docs/secrets.md). Never put tokens in command arguments or commit them to YAML.
 
-The daily one-hour learning track starts with [reference data and dynamic-universe construction](docs/learning/day-02-reference-data-and-universe.md), including terminology, formulas, DuckDB SQL, Python review, and interview questions.
+The daily one-hour learning track starts with reference data and dynamic-universe construction in [简体中文](docs/learning/day-02-reference-data-and-universe.zh-CN.md) and [English](docs/learning/day-02-reference-data-and-universe.en.md), including terminology, formulas, DuckDB SQL, Python review, and interview questions.
 
 ## Data-source policy
 
