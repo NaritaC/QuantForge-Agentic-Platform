@@ -44,7 +44,16 @@ A target portfolio is not an executed portfolio. Next-open buys at the upper lim
 
 The research universe will be reconstructed at every rebalance from listing age, ST/delisting state, and trailing liquidity. Backfilling today's index members removes many failed or delisted securities from history.
 
+The implemented universe counts exchange trading days since listing, requires at least 48 valid amount observations in the trailing 60-market-day window, excludes the ST state visible at the rebalance close, and ranks average amount deterministically. A suspended security can remain eligible because inability to execute is portfolio state, not permission to rewrite the research universe.
+
+## Free SDKs can fail operationally
+
+The BaoStock SDK can wait indefinitely if a server connection closes mid-message. QuantForge applies a socket deadline and an EOF guard, keeps batches bounded, and will add checkpointed retries before a full-market download. Network availability is never treated as a data-quality pass.
+
+## In-memory fixtures can hide persisted data types
+
+An all-null `delist_date` column can return from Parquet as `datetime64[ns]`, while a small mixed fixture may behave like Python `date` objects. Comparing them directly fails only after persistence. The research layer normalizes all date-like inputs to midnight pandas timestamps, and a regression test performs an actual Parquet round trip.
+
 ## Labels need a purge boundary
 
 The 20-trading-day future-return label overlaps future observations. Walk-forward folds and the frozen final holdout therefore use at least a 20-trading-day purge so training features cannot borrow validation outcomes.
-

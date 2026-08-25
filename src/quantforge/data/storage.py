@@ -146,16 +146,20 @@ class ParquetSnapshotStore:
         temporary = target.parent / f".{snapshot_id}.{uuid.uuid4().hex}.tmp"
         temporary.mkdir(parents=True, exist_ok=False)
         output = frame.copy()
-        output["trade_year"] = pd.to_datetime(output["trade_date"]).dt.year.astype("int16")
+        partition_columns: list[str] = []
+        if "trade_date" in output:
+            output["trade_year"] = pd.to_datetime(output["trade_date"]).dt.year.astype("int16")
+            partition_columns = ["trade_year"]
         table = pa.Table.from_pandas(output, preserve_index=False)
-        ds.write_dataset(
-            table,
-            base_dir=str(temporary),
-            format="parquet",
-            partitioning=["trade_year"],
-            partitioning_flavor="hive",
-            existing_data_behavior="error",
-        )
+        write_options: dict[str, Any] = {
+            "base_dir": str(temporary),
+            "format": "parquet",
+            "existing_data_behavior": "error",
+        }
+        if partition_columns:
+            write_options["partitioning"] = partition_columns
+            write_options["partitioning_flavor"] = "hive"
+        ds.write_dataset(table, **write_options)
         _atomic_json(
             temporary / "_snapshot.json",
             {

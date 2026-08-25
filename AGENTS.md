@@ -39,6 +39,7 @@ Agents must not:
 - Preserve user changes and avoid destructive Git history operations.
 - Run unit, integration, contract, leakage, and idempotency tests before a milestone push.
 - Record material architecture decisions in `docs/adr/`.
+- The user authorized pushing every reviewed change to `origin/main` on 2026-08-25. Push only after relevant tests, secret/data exclusion checks, and a clean commit; authorization does not permit pushing broken or licensed data.
 
 ## Research protocol frozen for the MVP
 
@@ -49,4 +50,3 @@ Agents must not:
 - Factors: 12-1 momentum, 60-day low volatility, PIT ROA TTM.
 - Cross-sectional median ± 5 MAD winsorization followed by z-score; no non-PIT industry backfill.
 - 2017 warm-up; 2018-2021 research; 2022/2023/2024 walk-forward folds; 2025-latest frozen final OOS.
-

@@ -1,6 +1,8 @@
 from pathlib import Path
 
-from quantforge.data.storage import RawStore
+import pandas as pd
+
+from quantforge.data.storage import ParquetSnapshotStore, RawStore
 
 
 def test_raw_store_is_content_addressed_and_idempotent(tmp_path: Path) -> None:
@@ -47,3 +49,20 @@ def test_raw_store_persists_network_payload_without_a_temporary_source_file(
 
     assert artifact.data_path.read_bytes() == payload
     assert artifact.data_path.suffix == ".csv"
+
+
+def test_parquet_snapshot_supports_reference_data_without_trade_date(tmp_path: Path) -> None:
+    frame = pd.DataFrame(
+        {
+            "instrument_id": ["600000.SH"],
+            "list_date": [pd.Timestamp("1999-11-10").date()],
+        }
+    )
+
+    snapshot = ParquetSnapshotStore(tmp_path / "curated", layer="curated").write(
+        frame, dataset="security_master"
+    )
+
+    files = list(snapshot.path.glob("*.parquet"))
+    assert len(files) == 1
+    assert pd.read_parquet(files[0])["instrument_id"].tolist() == ["600000.SH"]

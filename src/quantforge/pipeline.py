@@ -15,6 +15,12 @@ from quantforge.data.adapters.base import AdapterBatch, DailyBarAdapter
 from quantforge.data.catalog import query_daily_bar_summary
 from quantforge.data.normalize import normalize_daily_bars
 from quantforge.data.quality import validate_daily_bars
+from quantforge.data.reference import (
+    normalize_security_master,
+    normalize_trade_calendar,
+    validate_security_master,
+    validate_trade_calendar,
+)
 from quantforge.data.storage import (
     ParquetSnapshotStore,
     RawStore,
@@ -52,6 +58,7 @@ def _build_adapter(config: PipelineConfig) -> DailyBarAdapter:
             start_date=str(config.adapter_options["start_date"]),
             end_date=str(config.adapter_options["end_date"]),
             adjustflag=str(config.adapter_options.get("adjustflag", "3")),
+            timeout_seconds=float(config.adapter_options.get("timeout_seconds", 30.0)),
         )
     raise ValueError(f"Unsupported adapter: {config.adapter!r}")
 
@@ -76,6 +83,50 @@ def _persist_raw(config: PipelineConfig, batch: AdapterBatch):
     raise ValueError(f"Adapter {batch.source!r} returned no Raw payload")
 
 
+def _build_reference_dataset(
+    config: PipelineConfig,
+    batch: AdapterBatch,
+    *,
+    run_dir: Path,
+) -> dict[str, Any]:
+    raw = _persist_raw(config, batch)
+    if batch.dataset == "trade_calendar":
+        frame = normalize_trade_calendar(
+            batch.frame, source=batch.source, ingested_at=raw.ingested_at
+        )
+        quality = validate_trade_calendar(frame)
+        sort_columns = ["trade_date"]
+    elif batch.dataset == "security_master":
+        frame = normalize_security_master(
+            batch.frame, source=batch.source, ingested_at=raw.ingested_at
+        )
+        quality = validate_security_master(frame)
+        sort_columns = ["instrument_id"]
+    else:
+        raise ValueError(f"Unsupported reference dataset: {batch.dataset}")
+    _write_json(run_dir / f"quality-{batch.dataset}.json", quality.to_dict())
+    if config.fail_on_error:
+        quality.raise_if_failed()
+    staging = ParquetSnapshotStore(config.storage.staging_dir, layer="staging").write(
+        frame, dataset=batch.dataset
+    )
+    curated_frame = frame.sort_values(sort_columns, kind="stable").reset_index(drop=True)
+    curated = ParquetSnapshotStore(config.storage.curated_dir, layer="curated").write(
+        curated_frame, dataset=batch.dataset
+    )
+    return {
+        "raw": {
+            "checksum": raw.checksum,
+            "ingested_at": raw.ingested_at.isoformat(),
+            "data_path": str(raw.data_path),
+            "manifest_path": str(raw.manifest_path),
+        },
+        "staging": snapshot_to_dict(staging),
+        "curated": snapshot_to_dict(curated),
+        "quality": quality.to_dict(),
+    }
+
+
 def run_pipeline(config: PipelineConfig) -> dict[str, Any]:
     started_at = datetime.now(UTC)
     run_id = f"{started_at:%Y%m%dT%H%M%SZ}-{uuid.uuid4().hex[:8]}"
@@ -88,6 +139,16 @@ def run_pipeline(config: PipelineConfig) -> dict[str, Any]:
             f"Configured source {config.source!r} does not match adapter source {batch.source!r}"
         )
     raw = _persist_raw(config, batch)
+
+    reference_data: dict[str, Any] = {}
+    if isinstance(adapter, BaoStockAdapter):
+        for reference_batch in (
+            adapter.fetch_trade_calendar(),
+            adapter.fetch_security_master(),
+        ):
+            reference_data[reference_batch.dataset] = _build_reference_dataset(
+                config, reference_batch, run_dir=run_dir
+            )
 
     staging = normalize_daily_bars(
         batch.frame,
@@ -138,6 +199,7 @@ def run_pipeline(config: PipelineConfig) -> dict[str, Any]:
         "curated": snapshot_to_dict(curated_snapshot),
         "quality": quality.to_dict(),
         "duckdb_summary": sql_summary,
+        "reference_data": reference_data,
     }
     _write_json(run_dir / "run.json", manifest)
     _write_json(config.storage.artifacts_dir / "latest.json", manifest)

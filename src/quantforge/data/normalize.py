@@ -25,7 +25,7 @@ VENDOR_REQUIRED_COLUMNS = {
 
 def normalize_instrument_id(value: object) -> str:
     raw = str(value).strip().upper()
-    if raw.startswith(("SH.", "SZ.")):
+    if raw.startswith(("SH.", "SZ.", "BJ.")):
         market, code = raw.split(".", maxsplit=1)
         return f"{code}.{market}"
     if "." in raw:

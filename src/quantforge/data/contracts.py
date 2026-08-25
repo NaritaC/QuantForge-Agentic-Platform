@@ -21,3 +21,16 @@ DAILY_BAR_COLUMNS = (
 )
 
 TRADE_STATUSES = frozenset({"TRADE", "SUSPENDED"})
+
+TRADE_CALENDAR_COLUMNS = ("trade_date", "is_trading_day", "source", "ingested_at")
+
+SECURITY_MASTER_COLUMNS = (
+    "instrument_id",
+    "display_name",
+    "list_date",
+    "delist_date",
+    "instrument_type_code",
+    "current_status",
+    "source",
+    "ingested_at",
+)

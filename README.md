@@ -18,6 +18,8 @@ offline vendor-shaped CSV
   -> reproducible run manifest
 ```
 
+For BaoStock runs, the same command also materializes canonical trade-calendar and security-master snapshots before research data is used.
+
 The slice explicitly demonstrates stable instrument IDs, suspension state, OHLC validation, duplicate-key rejection, SHA-256 lineage, idempotent storage, and SQL over Parquet. A BaoStock adapter adds real unadjusted daily bars without requiring credentials; see [data-source roles](docs/data-sources.md).
 
 ## Quick start
@@ -48,6 +50,8 @@ Generated market data and run artifacts stay under `data/` and `artifacts/`; bot
 See [the data contract](docs/data-contracts.md), [quant-data pitfalls](docs/quant-data-pitfalls.md), and [ADR-001](docs/adr/001-day-one-stack.md).
 
 Credentials are entered only in the local, Git-ignored `.env`; see [the secrets guide](docs/secrets.md). Never put tokens in command arguments or commit them to YAML.
+
+The daily one-hour learning track starts with [reference data and dynamic-universe construction](docs/learning/day-02-reference-data-and-universe.md), including terminology, formulas, DuckDB SQL, Python review, and interview questions.
 
 ## Data-source policy
 

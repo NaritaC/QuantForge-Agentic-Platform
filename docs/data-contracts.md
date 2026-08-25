@@ -26,3 +26,7 @@ Daily price limits may be null when a source does not supply them. This is a vis
 The Curated financial schema will preserve `period_end`, `announcement_time`, `actual_announcement_date`, `source_available_at`, `ingested_at`, `known_from`, `known_to`, `revision_id`, `statement_type`, `source`, and `checksum`.
 
 When only an announcement date is known, `known_from` is the next exchange trading day. A correction creates a new version and closes the old version's `known_to`; it never overwrites history. Historical vendor downloads are labeled reconstructed PIT rather than pretending the platform captured them at the original date.
+
+## Reference data
+
+The trade calendar contains one row for every calendar date with an explicit `is_trading_day` flag. The security master preserves market-qualified identity, display name, listing date, delisting date, vendor type/status codes, source, and actual ingestion timestamp. Current vendor status is never backfilled as historical truth; dynamic-universe activity is reconstructed from effective listing and delisting dates.
