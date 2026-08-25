@@ -1,0 +1,58 @@
+# Secrets and local configuration
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+
+# Python
+__pycache__/
+*.py[cod]
+*.pyd
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+.venv/
+venv/
+dist/
+build/
+*.egg-info/
+
+# Notebooks and editors
+.ipynb_checkpoints/
+.idea/
+.vscode/
+*.swp
+
+# Local data and generated state
+/data/
+/artifacts/
+/models/
+/logs/
+/reports/*.html
+*.parquet
+*.duckdb
+*.duckdb.wal
+*.sqlite
+*.db
+*.h5
+*.hdf5
+*.pdf
+
+# Native build outputs
+CMakeFiles/
+CMakeCache.txt
+cmake-build-*/
+*.obj
+*.o
+*.dll
+*.so
+*.exe
+
+# OS files
+.DS_Store
+Thumbs.db
+desktop.ini
+

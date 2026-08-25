@@ -1,0 +1,24 @@
+project_root: ..
+pipeline:
+  adapter: fixture
+  fixture_path: tests/fixtures/daily_bars.csv
+  dataset: daily_bars
+  source: fixture
+quality:
+  fail_on_error: true
+storage:
+  raw_dir: data/raw
+  staging_dir: data/staging
+  curated_dir: data/curated
+  artifacts_dir: artifacts/runs
+  reports_dir: reports
+research:
+  rebalance_frequency: monthly
+  execution_price: next_open
+  unfilled_retry_days: 5
+  momentum_lookback_days: 252
+  momentum_skip_days: 21
+  volatility_window_days: 60
+  volatility_min_observations: 48
+  winsor_mad_multiplier: 5.0
+
