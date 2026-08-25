@@ -3,9 +3,15 @@ from __future__ import annotations
 from typing import Any
 
 
-def daily_bar_field_lineage(source: str) -> list[dict[str, str]]:
+def daily_bar_field_lineage(
+    source: str, request: dict[str, Any] | None = None
+) -> list[dict[str, str]]:
     """Describe field-level transformations from vendor payload to canonical bars."""
 
+    request = request or {}
+    derived_baostock_limits = (
+        source == "baostock" and request.get("price_limit_mode") == "derived_exchange_rules"
+    )
     raw_fields = {
         "instrument_id": "code" if source == "baostock" else "symbol",
         "trade_date": "date" if source == "baostock" else "trade_date",
@@ -18,8 +24,17 @@ def daily_bar_field_lineage(source: str) -> list[dict[str, str]]:
         "amount": "amount",
         "trade_status": "tradestatus",
         "is_st": "isST" if source == "baostock" else "is_st",
-        "upper_limit": "not supplied" if source == "baostock" else "upper_limit",
-        "lower_limit": "not supplied" if source == "baostock" else "lower_limit",
+        "upper_limit": (
+            "preclose + isST + code + trade_date"
+            if derived_baostock_limits
+            else "not supplied" if source == "baostock" else "upper_limit"
+        ),
+        "lower_limit": (
+            "preclose + isST + code + trade_date"
+            if derived_baostock_limits
+            else "not supplied" if source == "baostock" else "lower_limit"
+        ),
+        "price_limit_source": "adapter limit provenance",
         "source": "adapter identity",
         "ingested_at": "Raw persistence timestamp",
     }
@@ -42,12 +57,32 @@ def daily_bar_field_lineage(source: str) -> list[dict[str, str]]:
         ),
         "is_st": ("1/true/yes → true，其余为 false", "Map truthy vendor values to boolean."),
         "upper_limit": (
-            "BaoStock 不提供，显式保留为空并触发质量警告",
-            "BaoStock omits it; retain null and emit a quality warning.",
+            (
+                "按证券板块、交易日期、ST 状态和昨收推导，分位四舍五入；上市初期保守留空",
+                "Derive from board, date, ST state, and preclose with half-up fen rounding; "
+                "leave recent IPOs null.",
+            )
+            if derived_baostock_limits
+            else (
+                "BaoStock 不提供，显式保留为空并触发质量警告",
+                "BaoStock omits it; retain null and emit a quality warning.",
+            )
         ),
         "lower_limit": (
-            "BaoStock 不提供，显式保留为空并触发质量警告",
-            "BaoStock omits it; retain null and emit a quality warning.",
+            (
+                "按证券板块、交易日期、ST 状态和昨收推导，分位四舍五入；上市初期保守留空",
+                "Derive from board, date, ST state, and preclose with half-up fen rounding; "
+                "leave recent IPOs null.",
+            )
+            if derived_baostock_limits
+            else (
+                "BaoStock 不提供，显式保留为空并触发质量警告",
+                "BaoStock omits it; retain null and emit a quality warning.",
+            )
+        ),
+        "price_limit_source": (
+            "逐行记录 vendor、推导规则版本或 unavailable",
+            "Record vendor, derivation policy version, or unavailable per row.",
         ),
         "source": ("写入适配器名称常量", "Stamp the adapter source name."),
         "ingested_at": ("写入 Raw 首次落盘的 UTC 时间", "Stamp first Raw persistence time in UTC."),
@@ -79,7 +114,7 @@ def build_daily_bar_lineage(
 ) -> dict[str, Any]:
     """Build a portable, UI-ready evidence graph for one daily-bar run."""
 
-    field_lineage = daily_bar_field_lineage(source)
+    field_lineage = daily_bar_field_lineage(source, request)
     steps = [
         {
             "order": 1,

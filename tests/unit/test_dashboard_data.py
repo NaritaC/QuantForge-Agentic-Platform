@@ -64,7 +64,7 @@ def test_dashboard_read_model_discovers_and_queries_run(tmp_path: Path) -> None:
     assert prices["instrument_id"].nunique() == 3
     assert prices.groupby("instrument_id")["indexed_close"].first().eq(100).all()
     assert len(steps) == 6
-    assert len(fields) == 15
+    assert len(fields) == 16
     assert reconciliation["delta_from_previous"].dropna().eq(0).all()
     assert int(inventory["status"].eq("present").sum()) == 8
     assert inventory.loc[inventory["evidence"].eq("git_commit"), "status"].item() == "missing"

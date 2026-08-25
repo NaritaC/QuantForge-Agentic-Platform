@@ -12,3 +12,4 @@ The repository ignores `.env` and CI verifies that generated data is excluded. O
 
 BaoStock does not require a key. Tushare and AmazingData adapters will fail with a clear missing-secret error before making a request, and diagnostics expose only whether a variable is configured.
 
+AmazingData requires five local values: SDK path, username, password, host, and port. Put them under the corresponding `QUANTFORGE_AMAZINGDATA_*` names in `.env`; the committed example contains names only. Do not paste their values into YAML or command arguments.

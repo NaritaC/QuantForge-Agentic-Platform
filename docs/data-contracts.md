@@ -14,12 +14,13 @@ Primary key: `(instrument_id, trade_date)`.
 | `trade_status` | Tradability observation | `TRADE` or `SUSPENDED` |
 | `is_st` | ST state known for that date | Boolean, not today's state backfilled |
 | `upper_limit/lower_limit` | Daily permitted price bounds | Upper must not be below lower |
+| `price_limit_source` | Per-row provenance for price bounds | Vendor, policy version, or explicit unavailable state |
 | `source` | Lineage identifier | Required |
 | `ingested_at` | Actual platform receipt time | UTC timestamp |
 
 Duplicates are not resolved by “keep last” because arrival order is not a business rule. They fail the quality gate and require source-specific reconciliation.
 
-Daily price limits may be null when a source does not supply them. This is a visible warning and prevents the execution simulator from claiming exact limit-blocked fills. It is not permission to derive limits silently from today's board rules.
+Daily price limits may be null when a source does not supply them. This is a visible warning and prevents the execution simulator from claiming exact limit-blocked fills. Derived limits must identify a versioned historical policy in `price_limit_source`; they are never silently inferred from today's board rules.
 
 ## Financial PIT contract
 

@@ -39,7 +39,7 @@ def test_pipeline_runs_raw_to_duckdb_and_is_idempotent(tmp_path: Path) -> None:
     assert len(first["quality"]["checks"]) == 11
     assert first["lineage"]["schema_version"] == "1.0"
     assert len(first["lineage"]["processing_steps"]) == 6
-    assert len(first["lineage"]["field_lineage"]) == 15
+    assert len(first["lineage"]["field_lineage"]) == 16
     assert first["lineage"]["row_reconciliation"][-1]["delta_from_previous"] == 0
     assert first["reproduction"]["config_checksum"]
     assert first["reproduction"]["command"].endswith("mvp.yaml")

@@ -1,0 +1,52 @@
+project_root: ..
+pipeline:
+  adapter: baostock
+  dataset: daily_bars
+  source: baostock
+  symbols:
+    - 600000.SH
+    - 600036.SH
+    - 600519.SH
+    - 601318.SH
+    - 601398.SH
+    - 601857.SH
+    - 000001.SZ
+    - 000333.SZ
+    - 000651.SZ
+    - 000858.SZ
+    - 002415.SZ
+    - 002594.SZ
+  start_date: "2022-01-04"
+  end_date: "2025-12-31"
+  adjustflag: "3"
+  price_limit_mode: derived_exchange_rules
+  timeout_seconds: 30
+quality:
+  fail_on_error: true
+storage:
+  raw_dir: data/raw
+  staging_dir: data/staging
+  curated_dir: data/curated
+  artifacts_dir: artifacts/runs
+  reports_dir: reports
+research:
+  rebalance_frequency: monthly
+  execution_price: next_open
+  universe_top_n: 12
+  min_listing_days: 120
+  liquidity_window_days: 60
+  min_liquidity_observations: 48
+  momentum_lookback_days: 252
+  momentum_skip_days: 21
+  volatility_window_days: 60
+  volatility_min_observations: 48
+  winsor_mad_multiplier: 5.0
+  portfolio_size: 5
+  initial_cash: 1000000
+  lot_size: 100
+  commission_bps: 0.86
+  minimum_commission: 5.0
+  stamp_duty_bps: 5.0
+  slippage_bps: 2.0
+  unfilled_retry_days: 5
+  require_price_limits: true

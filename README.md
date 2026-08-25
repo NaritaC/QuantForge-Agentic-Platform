@@ -5,7 +5,8 @@ An audit-first, agent-assisted quantitative data and research platform for A-sha
 The central design rule is simple: agents may help researchers, but correctness comes from deterministic data contracts, point-in-time semantics, quality gates, reproducible snapshots, and tests. Disabling every model must leave ingestion, validation, feature computation, backtesting, and reporting functional.
 
 > Status: a deterministic data-to-portfolio research loop plus a local read-only Evidence Console.
-> The closed-loop demo is synthetic and proves functionality only; it is not research evidence.
+> Both an offline synthetic demo and a real BaoStock integration sample run end to end; neither is
+> presented as an unbiased strategy result.
 
 ## What runs today
 
@@ -27,7 +28,8 @@ For BaoStock runs, the same command also materializes canonical trade-calendar a
 The loop explicitly demonstrates stable instrument IDs, suspension state, OHLC validation,
 duplicate-key rejection, SHA-256 lineage, idempotent storage, field-level transformations, SQL over
 Parquet, no-lookahead signal timing, A-share board lots, transaction costs, and unfilled-order
-retries. A BaoStock adapter adds real unadjusted daily bars without credentials; see
+retries. A BaoStock adapter adds real unadjusted daily bars without credentials and can attach
+versioned, rule-derived price limits for execution testing; see
 [data-source roles](docs/data-sources.md).
 
 ## Quick start
@@ -45,6 +47,9 @@ python -m quantforge experiment --config configs/research-demo.yaml
 # Optional network smoke test; generated vendor data remains local and ignored.
 python -m pip install -e ".[dev,baostock]"
 python -m quantforge pipeline --config configs/baostock-smoke.yaml
+
+# Multi-year real-data integration loop (fixed sample, not a production universe).
+python -m quantforge experiment --config configs/real-data-research.yaml
 ```
 
 Generated market data and run artifacts stay under `data/` and `artifacts/`; both are intentionally ignored by Git.

@@ -16,6 +16,7 @@ DAILY_BAR_COLUMNS = (
     "is_st",
     "upper_limit",
     "lower_limit",
+    "price_limit_source",
     "source",
     "ingested_at",
 )

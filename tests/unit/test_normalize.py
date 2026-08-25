@@ -39,4 +39,5 @@ def test_normalize_daily_bars_preserves_suspension_as_explicit_state() -> None:
     assert result.loc[0, "instrument_id"] == "000001.SZ"
     assert result.loc[0, "trade_status"] == "SUSPENDED"
     assert result.loc[0, "volume"] == 0.0
+    assert result.loc[0, "price_limit_source"] == "vendor"
     assert str(result["ingested_at"].dtype) == "datetime64[us, UTC]"

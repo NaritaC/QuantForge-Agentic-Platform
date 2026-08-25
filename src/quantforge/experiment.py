@@ -186,6 +186,24 @@ def run_research(manifest: dict[str, Any], config: PipelineConfig) -> dict[str, 
         "nav": _write_frame(research_dir / "nav.parquet", result.nav),
     }
     _write_json(research_dir / "metrics.json", result.metrics)
+    limitations: list[str] = []
+    source = manifest.get("config", {}).get("source")
+    source_request = manifest.get("lineage", {}).get("source_request", {})
+    if source == "synthetic_fixture":
+        limitations.append(
+            "Synthetic fixture proves functionality and is not market research evidence."
+        )
+    if source == "baostock" and source_request.get("symbols"):
+        limitations.append(
+            "The configured symbol list is a real-data integration sample, not a "
+            "point-in-time full-market constituent history."
+        )
+    if source_request.get("price_limit_mode") == "derived_exchange_rules":
+        limitations.append(
+            "Daily price limits are deterministic exchange-rule estimates; validate exceptional "
+            "sessions against vendor snapshot limits before treating results as research evidence."
+        )
+
     research = {
         "status": "succeeded",
         "completed_at": datetime.now(UTC).isoformat(),
@@ -206,11 +224,7 @@ def run_research(manifest: dict[str, Any], config: PipelineConfig) -> dict[str, 
             "status": "deferred",
             "strategies": ["buy_and_hold", "grid_trading", "periodic_investment"],
         },
-        "limitations": (
-            ["Synthetic fixture proves functionality and is not market research evidence."]
-            if manifest.get("config", {}).get("source") == "synthetic_fixture"
-            else []
-        ),
+        "limitations": limitations,
     }
     _write_json(research_dir / "experiment.json", research)
     manifest["research"] = research

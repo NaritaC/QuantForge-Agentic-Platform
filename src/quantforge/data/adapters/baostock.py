@@ -10,6 +10,11 @@ import pandas as pd
 
 from quantforge.data.adapters.base import AdapterBatch
 from quantforge.data.normalize import normalize_instrument_id
+from quantforge.data.price_limits import (
+    IPO_GUARD_CALENDAR_DAYS,
+    PRICE_LIMIT_POLICY_VERSION,
+    derive_a_share_price_limits,
+)
 
 DAILY_FIELDS = (
     "date",
@@ -204,7 +209,7 @@ class BaoStockAdapter:
     """Vendor adapter that preserves unadjusted observations before normalization."""
 
     name = "baostock"
-    version = "1.0.0"
+    version = "1.1.0"
 
     def __init__(
         self,
@@ -213,6 +218,7 @@ class BaoStockAdapter:
         start_date: str,
         end_date: str,
         adjustflag: str = "3",
+        price_limit_mode: str = "missing",
         timeout_seconds: float = 30.0,
         sdk: ModuleType | Any | None = None,
     ) -> None:
@@ -223,12 +229,18 @@ class BaoStockAdapter:
                 "Canonical Raw daily bars must be unadjusted (BaoStock adjustflag='3'). "
                 "Adjustment factors belong in a separate derived dataset."
             )
+        if price_limit_mode not in {"missing", "derived_exchange_rules"}:
+            raise ValueError(
+                "BaoStock price_limit_mode must be 'missing' or 'derived_exchange_rules'"
+            )
         self.symbols = tuple(normalize_instrument_id(symbol) for symbol in symbols)
         self.start_date = start_date
         self.end_date = end_date
         self.adjustflag = adjustflag
+        self.price_limit_mode = price_limit_mode
         self.timeout_seconds = timeout_seconds
         self.sdk = sdk
+        self._security_master_cache: pd.DataFrame | None = None
 
     @staticmethod
     def _raw_csv(frame: pd.DataFrame) -> bytes:
@@ -236,6 +248,7 @@ class BaoStockAdapter:
 
     def fetch_daily_bars(self) -> AdapterBatch:
         frames: list[pd.DataFrame] = []
+        basic_frames: list[pd.DataFrame] = []
         with BaoStockSession(self.sdk, timeout_seconds=self.timeout_seconds) as session:
             for symbol in self.symbols:
                 frame = session.query_daily_bars(
@@ -245,6 +258,8 @@ class BaoStockAdapter:
                     adjustflag=self.adjustflag,
                 )
                 frames.append(frame)
+                if self.price_limit_mode == "derived_exchange_rules":
+                    basic_frames.append(session.query_security_basic(to_baostock_code(symbol)))
         raw = pd.concat(frames, ignore_index=True) if frames else pd.DataFrame(columns=DAILY_FIELDS)
         if raw.empty:
             raise BaoStockError(
@@ -254,8 +269,17 @@ class BaoStockAdapter:
         vendor = raw.rename(
             columns={"date": "trade_date", "code": "symbol", "isST": "is_st"}
         ).copy()
-        vendor["upper_limit"] = pd.NA
-        vendor["lower_limit"] = pd.NA
+        if self.price_limit_mode == "derived_exchange_rules":
+            self._security_master_cache = pd.concat(basic_frames, ignore_index=True)
+            listing_dates = {
+                normalize_instrument_id(row.code): row.ipoDate
+                for row in self._security_master_cache.itertuples(index=False)
+            }
+            vendor = derive_a_share_price_limits(vendor, listing_dates=listing_dates)
+        else:
+            vendor["upper_limit"] = pd.NA
+            vendor["lower_limit"] = pd.NA
+            vendor["price_limit_source"] = "unavailable"
         request = {
             "symbols": list(self.symbols),
             "start_date": self.start_date,
@@ -263,6 +287,17 @@ class BaoStockAdapter:
             "frequency": "d",
             "adjustflag": self.adjustflag,
             "fields": list(DAILY_FIELDS),
+            "price_limit_mode": self.price_limit_mode,
+            "price_limit_policy_version": (
+                PRICE_LIMIT_POLICY_VERSION
+                if self.price_limit_mode == "derived_exchange_rules"
+                else None
+            ),
+            "ipo_guard_calendar_days": (
+                IPO_GUARD_CALENDAR_DAYS
+                if self.price_limit_mode == "derived_exchange_rules"
+                else None
+            ),
         }
         return AdapterBatch(
             dataset="daily_bars",
@@ -289,11 +324,14 @@ class BaoStockAdapter:
         )
 
     def fetch_security_master(self) -> AdapterBatch:
-        frames: list[pd.DataFrame] = []
-        with BaoStockSession(self.sdk, timeout_seconds=self.timeout_seconds) as session:
-            for symbol in self.symbols:
-                frames.append(session.query_security_basic(to_baostock_code(symbol)))
-        frame = pd.concat(frames, ignore_index=True)
+        if self._security_master_cache is not None:
+            frame = self._security_master_cache.copy()
+        else:
+            frames: list[pd.DataFrame] = []
+            with BaoStockSession(self.sdk, timeout_seconds=self.timeout_seconds) as session:
+                for symbol in self.symbols:
+                    frames.append(session.query_security_basic(to_baostock_code(symbol)))
+            frame = pd.concat(frames, ignore_index=True)
         return AdapterBatch(
             dataset="security_master",
             source=self.name,

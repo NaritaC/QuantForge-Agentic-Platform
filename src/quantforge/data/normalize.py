@@ -68,6 +68,13 @@ def normalize_daily_bars(
     for column in numeric_columns:
         frame[column] = pd.to_numeric(frame[column], errors="coerce").astype("float64")
 
+    if "price_limit_source" not in frame:
+        supplied = frame[["upper_limit", "lower_limit"]].notna().all(axis=1)
+        frame["price_limit_source"] = supplied.map(
+            {True: "vendor", False: "unavailable"}
+        )
+    frame["price_limit_source"] = frame["price_limit_source"].astype("string")
+
     status = frame["tradestatus"].astype("string").str.strip().str.lower()
     frame["trade_status"] = status.map(
         {

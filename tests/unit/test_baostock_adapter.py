@@ -167,6 +167,25 @@ def test_adapter_returns_vendor_payload_and_canonical_input_frame() -> None:
     assert {issue.check for issue in report.issues} == {"missing_price_limits"}
 
 
+def test_adapter_can_derive_auditable_limits_for_mature_securities() -> None:
+    adapter = BaoStockAdapter(
+        symbols=["600000.SH"],
+        start_date="2024-01-02",
+        end_date="2024-01-02",
+        price_limit_mode="derived_exchange_rules",
+        sdk=FakeBaoStock(),
+    )
+
+    batch = adapter.fetch_daily_bars()
+
+    assert batch.frame.loc[0, "upper_limit"] == 7.26
+    assert batch.frame.loc[0, "lower_limit"] == 5.94
+    assert batch.frame.loc[0, "price_limit_source"] == "cn_a_share_exchange_rules_v1"
+    assert batch.request["price_limit_mode"] == "derived_exchange_rules"
+    master = adapter.fetch_security_master()
+    assert len(master.frame) == 1
+
+
 def test_adapter_always_logs_out_after_query_failure() -> None:
     sdk = FakeBaoStock(query_error=True)
     adapter = BaoStockAdapter(

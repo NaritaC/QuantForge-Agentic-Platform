@@ -64,6 +64,7 @@ def _build_adapter(config: PipelineConfig) -> DailyBarAdapter:
             start_date=str(config.adapter_options["start_date"]),
             end_date=str(config.adapter_options["end_date"]),
             adjustflag=str(config.adapter_options.get("adjustflag", "3")),
+            price_limit_mode=str(config.adapter_options.get("price_limit_mode", "missing")),
             timeout_seconds=float(config.adapter_options.get("timeout_seconds", 30.0)),
         )
     if config.adapter == "synthetic_fixture":
