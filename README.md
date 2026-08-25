@@ -18,7 +18,7 @@ offline vendor-shaped CSV
   -> reproducible run manifest
 ```
 
-The slice explicitly demonstrates stable instrument IDs, suspension state, OHLC validation, duplicate-key rejection, SHA-256 lineage, idempotent storage, and SQL over Parquet.
+The slice explicitly demonstrates stable instrument IDs, suspension state, OHLC validation, duplicate-key rejection, SHA-256 lineage, idempotent storage, and SQL over Parquet. A BaoStock adapter adds real unadjusted daily bars without requiring credentials; see [data-source roles](docs/data-sources.md).
 
 ## Quick start
 
@@ -28,6 +28,10 @@ Requires Python 3.12.
 python -m pip install -e ".[dev]"
 python -m pytest
 python -m quantforge pipeline --config configs/mvp.yaml
+
+# Optional network smoke test; generated vendor data remains local and ignored.
+python -m pip install -e ".[dev,baostock]"
+python -m quantforge pipeline --config configs/baostock-smoke.yaml
 ```
 
 Generated market data and run artifacts stay under `data/` and `artifacts/`; both are intentionally ignored by Git.
@@ -43,6 +47,8 @@ Generated market data and run artifacts stay under `data/` and `artifacts/`; bot
 
 See [the data contract](docs/data-contracts.md), [quant-data pitfalls](docs/quant-data-pitfalls.md), and [ADR-001](docs/adr/001-day-one-stack.md).
 
+Credentials are entered only in the local, Git-ignored `.env`; see [the secrets guide](docs/secrets.md). Never put tokens in command arguments or commit them to YAML.
+
 ## Data-source policy
 
 The zero-cost baseline will use BaoStock, with Tushare basic access, AmazingData trial access, AKShare, exchanges, and CNINFO used only where their field semantics and licenses permit. Sources are compared by lineage, authority, units, adjustment rules, and tolerance—not by majority vote.
@@ -52,4 +58,3 @@ No vendor payload, SDK, manual, token, or credential is included in this reposit
 ## License
 
 Platform code is licensed under Apache-2.0. Data obtained through third parties retains its own terms and is not covered by the code license.
-

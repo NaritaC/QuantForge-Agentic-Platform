@@ -19,9 +19,10 @@ Primary key: `(instrument_id, trade_date)`.
 
 Duplicates are not resolved by “keep last” because arrival order is not a business rule. They fail the quality gate and require source-specific reconciliation.
 
+Daily price limits may be null when a source does not supply them. This is a visible warning and prevents the execution simulator from claiming exact limit-blocked fills. It is not permission to derive limits silently from today's board rules.
+
 ## Financial PIT contract
 
 The Curated financial schema will preserve `period_end`, `announcement_time`, `actual_announcement_date`, `source_available_at`, `ingested_at`, `known_from`, `known_to`, `revision_id`, `statement_type`, `source`, and `checksum`.
 
 When only an announcement date is known, `known_from` is the next exchange trading day. A correction creates a new version and closes the old version's `known_to`; it never overwrites history. Historical vendor downloads are labeled reconstructed PIT rather than pretending the platform captured them at the original date.
-

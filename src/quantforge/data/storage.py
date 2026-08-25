@@ -60,9 +60,30 @@ class RawStore:
         request: dict[str, Any],
     ) -> RawArtifact:
         source_file = Path(source_path)
-        content = source_file.read_bytes()
+        return self.persist_bytes(
+            source_file.read_bytes(),
+            dataset=dataset,
+            source=source,
+            adapter_version=adapter_version,
+            request=request,
+            suffix=source_file.suffix.lower() or ".bin",
+            source_filename=source_file.name,
+        )
+
+    def persist_bytes(
+        self,
+        content: bytes,
+        *,
+        dataset: str,
+        source: str,
+        adapter_version: str,
+        request: dict[str, Any],
+        suffix: str = ".bin",
+        source_filename: str | None = None,
+    ) -> RawArtifact:
         checksum = hashlib.sha256(content).hexdigest()
-        suffix = source_file.suffix.lower() or ".bin"
+        if not suffix.startswith("."):
+            suffix = f".{suffix}"
         folder = self.root / dataset / source / checksum[:2] / checksum
         data_path = folder / f"payload{suffix}"
         manifest_path = folder / "manifest.json"
@@ -81,13 +102,13 @@ class RawStore:
         folder.mkdir(parents=True, exist_ok=True)
         ingested_at = datetime.now(UTC)
         if not data_path.exists():
-            shutil.copyfile(source_file, data_path)
+            data_path.write_bytes(content)
         _atomic_json(
             manifest_path,
             {
                 "dataset": dataset,
                 "source": source,
-                "source_filename": source_file.name,
+                "source_filename": source_filename,
                 "checksum_algorithm": "sha256",
                 "checksum": checksum,
                 "ingested_at": ingested_at.isoformat(),

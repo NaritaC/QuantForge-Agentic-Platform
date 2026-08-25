@@ -190,4 +190,23 @@ def validate_daily_bars(frame: pd.DataFrame) -> QualityReport:
             )
         )
 
+    missing_limits = frame[["upper_limit", "lower_limit"]].isna().any(axis=1)
+    if missing_limits.any():
+        issues.append(
+            QualityIssue(
+                "missing_price_limits",
+                "warning",
+                int(missing_limits.sum()),
+                (
+                    "Source does not provide daily price limits; "
+                    "execution checks must remain conservative."
+                ),
+                _records(
+                    frame,
+                    missing_limits,
+                    [*DAILY_BAR_PRIMARY_KEY, "upper_limit", "lower_limit"],
+                ),
+            )
+        )
+
     return QualityReport("daily_bars", len(frame), tuple(issues))

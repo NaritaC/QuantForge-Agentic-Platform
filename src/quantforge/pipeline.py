@@ -10,7 +10,8 @@ from pathlib import Path
 from typing import Any
 
 from quantforge.config import PipelineConfig, load_config
-from quantforge.data.adapters import FixtureDailyBarAdapter
+from quantforge.data.adapters import BaoStockAdapter, FixtureDailyBarAdapter
+from quantforge.data.adapters.base import AdapterBatch, DailyBarAdapter
 from quantforge.data.catalog import query_daily_bar_summary
 from quantforge.data.normalize import normalize_daily_bars
 from quantforge.data.quality import validate_daily_bars
@@ -38,27 +39,59 @@ def _write_json(path: Path, payload: dict[str, Any]) -> None:
     )
 
 
-def run_pipeline(config: PipelineConfig) -> dict[str, Any]:
-    if config.adapter != "fixture":
-        raise ValueError(f"Day-1 slice supports adapter='fixture', got {config.adapter!r}")
+def _build_adapter(config: PipelineConfig) -> DailyBarAdapter:
+    if config.adapter == "fixture":
+        return FixtureDailyBarAdapter(config.adapter_options["fixture_path"])
+    if config.adapter == "baostock":
+        required = {"symbols", "start_date", "end_date"}
+        missing = sorted(required - set(config.adapter_options))
+        if missing:
+            raise ValueError(f"BaoStock adapter missing configuration: {', '.join(missing)}")
+        return BaoStockAdapter(
+            symbols=config.adapter_options["symbols"],
+            start_date=str(config.adapter_options["start_date"]),
+            end_date=str(config.adapter_options["end_date"]),
+            adjustflag=str(config.adapter_options.get("adjustflag", "3")),
+        )
+    raise ValueError(f"Unsupported adapter: {config.adapter!r}")
 
+
+def _persist_raw(config: PipelineConfig, batch: AdapterBatch):
+    store = RawStore(config.storage.raw_dir)
+    common = {
+        "dataset": batch.dataset,
+        "source": batch.source,
+        "adapter_version": batch.adapter_version,
+        "request": batch.request,
+    }
+    if batch.source_path is not None:
+        return store.persist_file(batch.source_path, **common)
+    if batch.raw_payload is not None:
+        return store.persist_bytes(
+            batch.raw_payload,
+            suffix=batch.raw_suffix,
+            source_filename=batch.source_filename,
+            **common,
+        )
+    raise ValueError(f"Adapter {batch.source!r} returned no Raw payload")
+
+
+def run_pipeline(config: PipelineConfig) -> dict[str, Any]:
     started_at = datetime.now(UTC)
     run_id = f"{started_at:%Y%m%dT%H%M%SZ}-{uuid.uuid4().hex[:8]}"
     run_dir = config.storage.artifacts_dir / run_id
 
-    adapter = FixtureDailyBarAdapter(config.fixture_path)
+    adapter = _build_adapter(config)
     batch = adapter.fetch_daily_bars()
-    raw = RawStore(config.storage.raw_dir).persist_file(
-        batch.source_path,
-        dataset=batch.dataset,
-        source=batch.source,
-        adapter_version=batch.adapter_version,
-        request=batch.request,
-    )
+    if batch.source != config.source:
+        raise ValueError(
+            f"Configured source {config.source!r} does not match adapter source {batch.source!r}"
+        )
+    raw = _persist_raw(config, batch)
 
     staging = normalize_daily_bars(
         batch.frame,
-        source=config.source,
+        source=batch.source,
         ingested_at=raw.ingested_at,
     )
     quality = validate_daily_bars(staging)
@@ -90,6 +123,7 @@ def run_pipeline(config: PipelineConfig) -> dict[str, Any]:
         "platform": platform.platform(),
         "config": {
             "adapter": config.adapter,
+            "adapter_options": config.adapter_options,
             "dataset": config.dataset,
             "source": config.source,
             "research": config.research,

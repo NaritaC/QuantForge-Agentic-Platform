@@ -1,0 +1,25 @@
+project_root: ..
+pipeline:
+  adapter: baostock
+  dataset: daily_bars
+  source: baostock
+  symbols:
+    - 600000.SH
+    - 000001.SZ
+    - 300750.SZ
+  start_date: "2024-01-02"
+  end_date: "2024-01-08"
+  adjustflag: "3"
+quality:
+  fail_on_error: true
+storage:
+  raw_dir: data/raw
+  staging_dir: data/staging
+  curated_dir: data/curated
+  artifacts_dir: artifacts/runs
+  reports_dir: reports
+research:
+  rebalance_frequency: monthly
+  execution_price: next_open
+  unfilled_retry_days: 5
+

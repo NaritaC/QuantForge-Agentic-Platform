@@ -12,9 +12,12 @@ class AdapterBatch:
     dataset: str
     source: str
     adapter_version: str
-    source_path: Path
     request: dict[str, Any]
     frame: pd.DataFrame
+    source_path: Path | None = None
+    raw_payload: bytes | None = None
+    raw_suffix: str = ".csv"
+    source_filename: str | None = None
 
 
 class DailyBarAdapter(Protocol):

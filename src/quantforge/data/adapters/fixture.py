@@ -27,4 +27,5 @@ class FixtureDailyBarAdapter:
             source_path=self.path,
             request={"kind": "offline_fixture", "filename": self.path.name},
             frame=frame,
+            source_filename=self.path.name,
         )
