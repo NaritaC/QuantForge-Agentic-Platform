@@ -25,6 +25,7 @@ dev = [
   "ruff>=0.12,<1",
 ]
 baostock = ["baostock>=0.9.3,<1"]
+ui = ["streamlit>=1.50,<2"]
 
 [project.scripts]
 quantforge = "quantforge.cli:main"
@@ -36,6 +37,11 @@ where = ["src"]
 addopts = "-ra --strict-markers"
 testpaths = ["tests"]
 pythonpath = ["src"]
+
+[tool.coverage.run]
+# Streamlit AppTest executes page code outside coverage.py's active tracer.
+# The page still has an explicit render smoke test in test_dashboard_data.py.
+omit = ["src/quantforge/ui/app.py"]
 
 [tool.ruff]
 target-version = "py312"

@@ -4,7 +4,8 @@ An audit-first, agent-assisted quantitative data and research platform for A-sha
 
 The central design rule is simple: agents may help researchers, but correctness comes from deterministic data contracts, point-in-time semantics, quality gates, reproducible snapshots, and tests. Disabling every model must leave ingestion, validation, feature computation, backtesting, and reporting functional.
 
-> Status: Day-1 vertical slice. The public fixture is synthetic and must not be interpreted as research evidence.
+> Status: data vertical slice plus a local read-only Research Ledger. The public fixture is
+> synthetic and must not be interpreted as research evidence.
 
 ## What runs today
 
@@ -37,6 +38,21 @@ python -m quantforge pipeline --config configs/baostock-smoke.yaml
 ```
 
 Generated market data and run artifacts stay under `data/` and `artifacts/`; both are intentionally ignored by Git.
+
+### Open the visual Research Ledger
+
+The bilingual local UI turns run manifests and Parquet snapshots into readable coverage, quality,
+lineage, price-series, and data-preview views:
+
+```powershell
+python -m pip install -e ".[dev,ui]"
+python -m quantforge dashboard
+```
+
+The default address is `http://localhost:8501`. The dashboard is deliberately read-only: every
+displayed result comes from the deterministic pipeline and can be traced back to its local run
+manifest and immutable snapshot. Universe, factor, and backtest panels will be connected as those
+deterministic modules land; see [ADR-003](docs/adr/003-local-research-ledger-ui.md).
 
 ## Research protocol
 

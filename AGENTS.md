@@ -10,6 +10,8 @@ This repository is an audit-first quantitative research platform. Agents are col
 - Staging normalizes vendor semantics. Curated data must pass explicit contracts and quality gates.
 - Point-in-time availability, revisions, lineage, and execution constraints are first-class data.
 - Research results are evidence, not return promises.
+- The MVP includes a read-only bilingual visual interface for data, quality, lineage, factors, and
+  backtests; the interface must disclose unavailable modules rather than fabricate placeholders.
 
 ## Agent permissions
 
