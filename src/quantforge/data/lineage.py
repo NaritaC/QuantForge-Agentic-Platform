@@ -27,12 +27,16 @@ def daily_bar_field_lineage(
         "upper_limit": (
             "preclose + isST + code + trade_date"
             if derived_baostock_limits
-            else "not supplied" if source == "baostock" else "upper_limit"
+            else "not supplied"
+            if source == "baostock"
+            else "upper_limit"
         ),
         "lower_limit": (
             "preclose + isST + code + trade_date"
             if derived_baostock_limits
-            else "not supplied" if source == "baostock" else "lower_limit"
+            else "not supplied"
+            if source == "baostock"
+            else "lower_limit"
         ),
         "price_limit_source": "adapter limit provenance",
         "source": "adapter identity",

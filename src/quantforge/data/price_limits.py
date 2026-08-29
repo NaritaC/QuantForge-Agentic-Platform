@@ -62,17 +62,14 @@ def derive_a_share_price_limits(
     lower: list[object] = []
     provenance: list[str] = []
 
-    for row in result.loc[:, ["symbol", "trade_date", "preclose", "is_st"]].itertuples(
-        index=False
-    ):
+    for row in result.loc[:, ["symbol", "trade_date", "preclose", "is_st"]].itertuples(index=False):
         instrument_id = normalize_instrument_id(row.symbol)
         trade_day = pd.Timestamp(row.trade_date).date()
         previous_close = pd.to_numeric(pd.Series([row.preclose]), errors="coerce").iloc[0]
         listed_value = listing_dates.get(instrument_id)
         listed_day = pd.Timestamp(listed_value).date() if pd.notna(listed_value) else None
         recent_ipo = (
-            listed_day is not None
-            and 0 <= (trade_day - listed_day).days < IPO_GUARD_CALENDAR_DAYS
+            listed_day is not None and 0 <= (trade_day - listed_day).days < IPO_GUARD_CALENDAR_DAYS
         )
         if pd.isna(previous_close) or float(previous_close) <= 0 or recent_ipo:
             upper.append(pd.NA)

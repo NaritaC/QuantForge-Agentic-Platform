@@ -2,6 +2,9 @@
 
 This repository is an audit-first quantitative research platform. Agents are collaborators above a deterministic core; they are not a source of market truth.
 
+A context-free agent must read `docs/agent-handoff.zh-CN.md` after this file and complete its
+bootstrap acceptance checklist before claiming ownership of the project.
+
 ## Product boundary
 
 - The package name is `quantforge`; the product and repository name is `QuantForge-Agentic-Platform`.

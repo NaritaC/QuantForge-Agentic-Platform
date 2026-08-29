@@ -54,6 +54,13 @@ python -m quantforge experiment --config configs/real-data-research.yaml
 
 Generated market data and run artifacts stay under `data/` and `artifacts/`; both are intentionally ignored by Git.
 
+### New-agent handoff
+
+A context-free coding agent should begin with the
+[Chinese bootstrap and handoff manual](docs/agent-handoff.zh-CN.md). It defines the required
+capabilities, recommended Skills and MCP servers, clean-environment reproduction steps, acceptance
+evidence, security boundaries, current limitations, and prioritized continuation roadmap.
+
 ### Open the visual Research Ledger
 
 The bilingual local UI reads the exact run and experiment artifacts. It exposes vendor requests,
